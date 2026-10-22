@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.state/
+config.json
+data/learned.jsonl
+data/*.bak-*
+rollback-*/
+artifacts/
+*.log
