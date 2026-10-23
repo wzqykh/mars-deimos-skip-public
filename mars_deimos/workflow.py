@@ -152,6 +152,7 @@ class MarsWorkflow:
         answer_mode: str | None = None,
     ) -> RunReport:
         activity_type = int(activity.get("activityType"))
+        is_exam = self.api.activity_kind(activity_type) == "exam"
         user_activity_id = activity.get("userActivityId")
         name = str(activity.get("name") or "")
         answer_mode = str(
@@ -212,17 +213,18 @@ class MarsWorkflow:
             allow_server_correct = False
         last_tick = self.clock()
         deliberate_wrong_plans: dict[str, AnswerPlan] = {}
-        if answer_mode == "human":
-            deliberate_wrong_plans = self._plan_deliberate_wrong_questions(
-                question_list,
-                allow_server_correct=allow_server_correct,
-            )
-            report.deliberate_wrong_planned = len(deliberate_wrong_plans)
-            self.emit(
-                f"正式考试策略: 拟人模式，计划故意错 {report.deliberate_wrong_planned} 题"
-            )
-        else:
-            self.emit("正式考试策略: 全对模式")
+        if activity_type == 4:
+            if answer_mode == "human":
+                deliberate_wrong_plans = self._plan_deliberate_wrong_questions(
+                    question_list,
+                    allow_server_correct=allow_server_correct,
+                )
+                report.deliberate_wrong_planned = len(deliberate_wrong_plans)
+                self.emit(
+                    f"正式考试策略: 拟人模式，计划故意错 {report.deliberate_wrong_planned} 题"
+                )
+            else:
+                self.emit("正式考试策略: 全对模式")
 
         while True:
             page_count += 1
@@ -321,17 +323,23 @@ class MarsWorkflow:
 
         if self.guard:
             self.guard.validate_coverage(report.missing, expected or len(report.questions))
-            exam_min_seconds = self.guard.minimum_exam_seconds(
-                expected or len(report.questions),
-                int(report.prepared.get("answerTime") or 0),
+            exam_min_seconds = (
+                self.guard.minimum_exam_seconds(
+                    expected or len(report.questions),
+                    int(report.prepared.get("answerTime") or 0),
+                )
+                if is_exam
+                else 0.0
             )
         else:
-            exam_min_seconds = float(self.config.get("exam_min_seconds") or 0)
+            exam_min_seconds = (
+                float(self.config.get("exam_min_seconds") or 0) if is_exam else 0.0
+            )
         self.emit(
             f"答题完成: {len(report.questions)}/{expected or len(report.questions)} 题, "
             f"题库未命中 {report.missing} 题"
         )
-        if self.api.activity_kind(activity_type) == "exam" and exam_min_seconds > 0:
+        if is_exam and exam_min_seconds > 0:
             elapsed = self.clock() - started_at
             if elapsed < exam_min_seconds:
                 wait_for = exam_min_seconds - elapsed
@@ -339,7 +347,7 @@ class MarsWorkflow:
                 self.sleep(wait_for)
 
         elapsed_before_submit = self.clock() - started_at
-        if self.guard:
+        if self.guard and is_exam:
             self.guard.validate_submit_timing(
                 elapsed_before_submit,
                 expected or len(report.questions),
@@ -350,7 +358,7 @@ class MarsWorkflow:
         if self.guard:
             self.guard.validate_result(report.result, expected or len(report.questions))
         self.emit(f"交卷结果: {json.dumps(report.result, ensure_ascii=False)}")
-        if self.api.activity_kind(activity_type) == "exam":
+        if is_exam:
             if bool(self.config.get("audit_submitted_answers", True)):
                 report.unrecorded_answers = self._audit_submitted_answers(
                     activity_type,

@@ -76,6 +76,46 @@ class FakeApi:
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_practice_skips_formal_exam_timing_and_strategy_message(self) -> None:
+        bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
+        api = FakeApi()
+        messages: list[str] = []
+        now = [0.0]
+
+        def clock() -> float:
+            return now[0]
+
+        def sleep(seconds: float) -> None:
+            now[0] += seconds
+
+        with tempfile.TemporaryDirectory() as directory:
+            policy = GuardPolicy(
+                min_question_seconds=0,
+                max_question_seconds=0,
+                exam_min_question_seconds=0,
+                exam_max_question_seconds=0,
+                exam_min_seconds_per_question=0,
+                explicit_exam_min_seconds=613,
+                audit_path=str(Path(directory) / "audit.jsonl"),
+                lock_path=str(Path(directory) / "run.lock"),
+            )
+            workflow = MarsWorkflow(
+                api,
+                bank,
+                {"collect_wrong_answers": False},
+                emit=messages.append,
+                clock=clock,
+                sleep=sleep,
+                guard=IntegrityGuard(policy),
+            )
+            report = workflow.execute(
+                {"activityType": 1, "userActivityId": 20, "name": "顺序练习"},
+                collect_wrong=False,
+            )
+        self.assertTrue(report.submitted)
+        self.assertEqual(report.elapsed_seconds, 0)
+        self.assertNotIn("正式考试策略", "\n".join(messages))
+
     def test_human_mode_selects_between_eight_and_eleven_distinct_questions(self) -> None:
         workflow = MarsWorkflow(
             FakeApi(),
