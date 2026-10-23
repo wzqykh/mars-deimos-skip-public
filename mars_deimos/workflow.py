@@ -339,6 +339,13 @@ class MarsWorkflow:
             f"答题完成: {len(report.questions)}/{expected or len(report.questions)} 题, "
             f"题库未命中 {report.missing} 题"
         )
+        if not is_exam and expected > 0 and len(report.questions) < expected:
+            message = (
+                f"practice is incomplete: {len(report.questions)}/{expected} questions"
+            )
+            if not bool(self.config.get("allow_partial_practice_submit", False)):
+                raise ApiError(message)
+            self.emit(f"警告: {message}; partial submission is enabled")
         if is_exam and exam_min_seconds > 0:
             elapsed = self.clock() - started_at
             if elapsed < exam_min_seconds:

@@ -116,6 +116,40 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(report.elapsed_seconds, 0)
         self.assertNotIn("正式考试策略", "\n".join(messages))
 
+    def test_incomplete_practice_is_not_submitted_by_default(self) -> None:
+        class IncompletePracticeApi(FakeApi):
+            def prepare_paper(
+                self,
+                activity_type: int,
+                user_activity_id: int,
+            ) -> dict[str, object]:
+                return {
+                    "questionNum": 2,
+                    "answerTime": 0,
+                    "totalTimes": 0,
+                    "doneTimes": 0,
+                }
+
+        bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
+        api = IncompletePracticeApi()
+        with tempfile.TemporaryDirectory() as directory:
+            workflow = MarsWorkflow(
+                api,
+                bank,
+                {
+                    "collect_wrong_answers": False,
+                    "allow_partial_practice_submit": False,
+                    "learned_path": str(Path(directory) / "learned.jsonl"),
+                },
+                emit=lambda _: None,
+            )
+            with self.assertRaises(ApiError):
+                workflow.execute(
+                    {"activityType": 1, "userActivityId": 20, "name": "顺序练习"},
+                    collect_wrong=False,
+                )
+        self.assertFalse(api.submit_called)
+
     def test_human_mode_selects_between_eight_and_eleven_distinct_questions(self) -> None:
         workflow = MarsWorkflow(
             FakeApi(),

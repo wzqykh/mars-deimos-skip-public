@@ -24,6 +24,7 @@ DEFAULTS: dict[str, Any] = {
     "deliberate_wrong_min": 8,
     "deliberate_wrong_max": 11,
     "audit_submitted_answers": True,
+    "allow_partial_practice_submit": False,
     "guard_enabled": True,
     "guard_strict": True,
     "guard_require_token": True,

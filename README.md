@@ -241,6 +241,7 @@ cp config.example.json config.json
 | `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 8 |
 | `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 11 |
 | `audit_submitted_answers` | 是否检查服务端作答落库状态 |
+| `allow_partial_practice_submit` | 顺序练习未达到预期题数时是否仍允许交卷，默认关闭 |
 | `exam_min_seconds` | 考试最低总用时，默认 613 秒 |
 | `logout_after_exam` | 考试完成后是否自动退出登录 |
 | `cleanup_captcha_files` | 是否自动删除验证码临时文件 |

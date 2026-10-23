@@ -17,6 +17,7 @@
   "deliberate_wrong_min": 8,
   "deliberate_wrong_max": 11,
   "audit_submitted_answers": true,
+  "allow_partial_practice_submit": false,
   "guard_enabled": true,
   "guard_strict": true,
   "guard_require_token": true,
