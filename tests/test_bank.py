@@ -75,6 +75,17 @@ class BankTests(unittest.TestCase):
         self.assertEqual(multi.payload_value, "a,c")
         self.assertEqual(judge.payload_value, "no")
 
+    def test_judgement_letters_normalize_to_semantic_answers(self) -> None:
+        question = BankQuestion.from_mapping(
+            {
+                "qtype": 4,
+                "title": "判断题",
+                "options": ["正确", "错误"],
+                "answers": ["B"],
+            }
+        )
+        self.assertEqual(question.answers, ("N",))
+
     def test_punctuation_tolerant_match(self) -> None:
         title = "遇到火灾时，下列做法正确的是____。"
         bank = QuestionBank([BankQuestion("1", 1, "", title, ("甲", "乙"), ("A",))])

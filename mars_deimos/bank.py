@@ -110,6 +110,30 @@ def parse_answers(value: Any) -> tuple[str, ...]:
     return ()
 
 
+def normalize_judgement_answers(
+    answers: tuple[str, ...],
+    options: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Normalize judgement answers so A/B and Y/N forms compare consistently."""
+    normalized: list[str] = []
+    for answer in answers:
+        if answer in {"Y", "N"}:
+            normalized.append(answer)
+            continue
+        if answer not in "ABCDEF":
+            continue
+        index = ord(answer) - ord("A")
+        parsed = parse_answers(options[index]) if index < len(options) else ()
+        semantic = next((item for item in parsed if item in {"Y", "N"}), "")
+        if semantic:
+            normalized.append(semantic)
+        elif index == 0:
+            normalized.append("Y")
+        elif index == 1:
+            normalized.append("N")
+    return tuple(dict.fromkeys(normalized))
+
+
 @dataclass(frozen=True)
 class BankQuestion:
     number: str
@@ -125,13 +149,18 @@ class BankQuestion:
         title = str(row.get("title") or row.get("题目") or "").strip()
         if not title:
             raise ValueError("question title is empty")
+        qtype = parse_type(row.get("qtype") or row.get("type") or row.get("题型"))
+        options = split_options(row.get("options") or row.get("选项"))
+        answers = parse_answers(row.get("answers") or row.get("answer") or row.get("答案"))
+        if qtype == 4:
+            answers = normalize_judgement_answers(answers, options)
         return cls(
             number=str(row.get("number") or row.get("序号") or "").strip(),
-            qtype=parse_type(row.get("qtype") or row.get("type") or row.get("题型")),
+            qtype=qtype,
             category=str(row.get("category") or row.get("类别") or "").strip(),
             title=title,
-            options=split_options(row.get("options") or row.get("选项")),
-            answers=parse_answers(row.get("answers") or row.get("answer") or row.get("答案")),
+            options=options,
+            answers=answers,
             source=source,
         )
 
@@ -358,6 +387,13 @@ class QuestionBank:
                 letters.append(chr(ord("A") + option["index"]))
         if not title or not letters:
             return None
+        if qtype == 4:
+            letters = list(
+                normalize_judgement_answers(
+                    tuple(letters),
+                    tuple(option["content"] for option in options),
+                )
+            )
         learned = BankQuestion(
             number="",
             qtype=qtype,

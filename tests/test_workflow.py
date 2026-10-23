@@ -239,6 +239,37 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn('"answers": ["B"]', rows[0])
 
+    def test_collect_wrong_does_not_duplicate_semantically_equal_judgement(self) -> None:
+        class JudgementApi(FakeApi):
+            def list_error_questions(
+                self,
+                activity_type: int,
+                user_exam_id: int,
+            ) -> list[dict[str, object]]:
+                return [
+                    {
+                        "id": 602,
+                        "type": 4,
+                        "title": "判断题",
+                        "optionList": [
+                            {"id": "yes", "content": "正确", "isCorrect": 0},
+                            {"id": "no", "content": "错误", "isCorrect": 1},
+                        ],
+                    }
+                ]
+
+        bank = QuestionBank(
+            [BankQuestion("1", 4, "", "判断题", ("正确", "错误"), ("N",))]
+        )
+        api = JudgementApi()
+        with tempfile.TemporaryDirectory() as directory:
+            learned_path = Path(directory) / "learned.jsonl"
+            config = {"learned_path": str(learned_path)}
+            workflow = MarsWorkflow(api, bank, config, emit=lambda _: None)
+            count = workflow.collect_wrong(3, 20, submit_result={"userExamId": 77})
+        self.assertEqual(count, 0)
+        self.assertFalse(learned_path.exists())
+
     def test_execute_with_integrity_guard_creates_valid_audit_chain(self) -> None:
         bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
         api = FakeApi()
