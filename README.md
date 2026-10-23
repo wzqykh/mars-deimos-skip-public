@@ -137,7 +137,7 @@ python main.py auto
 
 ```text
 [0] 全对（默认）
-[1] 拟人模式：随机故意错 10 题
+[1] 拟人模式：随机故意错 8～11 题
 ```
 
 也可以直接通过参数指定：
@@ -238,8 +238,8 @@ cp config.example.json config.json
 | `exam_question_delay_min_seconds` | 正式考试每题等待下限，默认 5 秒 |
 | `exam_question_delay_max_seconds` | 正式考试每题等待上限，默认 7 秒 |
 | `formal_exam_mode` | 正式考试策略：`ask`、`perfect` 或 `human` |
-| `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 10 |
-| `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 10 |
+| `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 8 |
+| `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 11 |
 | `audit_submitted_answers` | 是否检查服务端作答落库状态 |
 | `exam_min_seconds` | 考试最低总用时，默认 613 秒 |
 | `logout_after_exam` | 考试完成后是否自动退出登录 |

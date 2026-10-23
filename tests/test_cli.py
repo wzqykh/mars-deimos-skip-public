@@ -97,8 +97,8 @@ class CaptchaArtifactTests(unittest.TestCase):
             _resolve_answer_mode({"formal_exam_mode": "ask"}, args, 3),
             "perfect",
         )
-        self.assertEqual(DEFAULTS["deliberate_wrong_min"], 10)
-        self.assertEqual(DEFAULTS["deliberate_wrong_max"], 10)
+        self.assertEqual(DEFAULTS["deliberate_wrong_min"], 8)
+        self.assertEqual(DEFAULTS["deliberate_wrong_max"], 11)
 
     def test_cleanup_removes_only_per_attempt_captcha_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

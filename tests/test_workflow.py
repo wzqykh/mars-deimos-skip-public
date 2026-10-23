@@ -76,11 +76,11 @@ class FakeApi:
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_human_mode_selects_ten_distinct_questions(self) -> None:
+    def test_human_mode_selects_between_eight_and_eleven_distinct_questions(self) -> None:
         workflow = MarsWorkflow(
             FakeApi(),
             QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))]),
-            {"deliberate_wrong_min": 10, "deliberate_wrong_max": 10},
+            {"deliberate_wrong_min": 8, "deliberate_wrong_max": 11},
             emit=lambda _: None,
             random_source=random.Random(11),
         )
@@ -100,8 +100,9 @@ class WorkflowTests(unittest.TestCase):
             questions,
             allow_server_correct=False,
         )
-        self.assertEqual(len(plans), 10)
-        self.assertEqual(len(set(plans)), 10)
+        self.assertGreaterEqual(len(plans), 8)
+        self.assertLessEqual(len(plans), 11)
+        self.assertEqual(len(set(plans)), len(plans))
         self.assertTrue(all(plan.match_kind == "deliberate-wrong" for plan in plans.values()))
 
     def test_human_mode_builds_valid_wrong_multi_choice_answer(self) -> None:
