@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 import random
 
@@ -76,6 +77,90 @@ class FakeApi:
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_practice_collects_pages_before_and_after_resume_position(self) -> None:
+        class PracticePagesApi(FakeApi):
+            pages = {
+                1: [1, 2],
+                2: [3, 4],
+                3: [5, 6],
+            }
+
+            @staticmethod
+            def page(index: int) -> dict[str, object]:
+                return {
+                    "currentIndex": index,
+                    "hasBefore": 2 if index == 1 else 1,
+                    "hasNext": 2 if index == 3 else 1,
+                    "questionList": [
+                        {
+                            "id": question_id,
+                            "type": 1,
+                            "title": "测试题",
+                            "optionList": [
+                                {"id": "a", "content": "甲"},
+                                {"id": "b", "content": "乙"},
+                            ],
+                        }
+                        for question_id in PracticePagesApi.pages[index]
+                    ],
+                }
+
+            def prepare_paper(
+                self,
+                activity_type: int,
+                user_activity_id: int,
+            ) -> dict[str, object]:
+                return {
+                    "questionNum": 6,
+                    "answerTime": 0,
+                    "totalTimes": 0,
+                    "doneTimes": 0,
+                }
+
+            def start_paper(
+                self,
+                activity_type: int,
+                user_activity_id: int,
+            ) -> dict[str, object]:
+                return self.page(3)
+
+            def get_near(
+                self,
+                user_activity_id: int,
+                current_index: int,
+                near_type: int,
+            ) -> dict[str, object]:
+                return self.page(current_index + (-1 if near_type == 1 else 1))
+
+            def submit_paper(
+                self,
+                activity_type: int,
+                user_activity_id: int,
+            ) -> dict[str, object]:
+                self.submit_called = True
+                return {"score": 100, "rightNum": 6, "errorNum": 0}
+
+        bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
+        api = PracticePagesApi()
+        workflow = MarsWorkflow(
+            api,
+            bank,
+            {
+                "collect_wrong_answers": False,
+                "allow_partial_practice_submit": False,
+                "max_pages": 50,
+            },
+            emit=lambda _: None,
+        )
+        report = workflow.execute(
+            {"activityType": 1, "userActivityId": 20, "name": "顺序练习"},
+            collect_wrong=False,
+        )
+        self.assertEqual(len(report.questions), 6)
+        self.assertTrue(report.submitted)
+        page_counts = Counter(item["kwargs"]["current_index"] for item in api.recorded)
+        self.assertEqual(page_counts, {1: 2, 2: 2, 3: 2})
+
     def test_practice_skips_formal_exam_timing_and_strategy_message(self) -> None:
         bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
         api = FakeApi()

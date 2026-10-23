@@ -202,10 +202,12 @@ class MarsWorkflow:
         question_list = list(paper.get("questionList") or [])
         self.emit(f"开始答题: {expected or '?'} 题")
         current_index = int(paper.get("currentIndex") or 1)
-        has_next = _boolish(paper.get("hasNext"))
+        question_pages = (
+            [(current_index, question_list)]
+            if is_exam
+            else self._collect_practice_question_pages(user_activity_id, paper)
+        )
         seen: set[str] = set()
-        page_count = 0
-        max_pages = int(self.config.get("max_pages") or 50)
         legacy_delay = float(self.config.get("question_delay_seconds") or 0)
         allow_server_correct = bool(self.config.get("allow_server_correct", True))
         verbose_questions = bool(self.config.get("verbose_questions", False))
@@ -226,9 +228,8 @@ class MarsWorkflow:
             else:
                 self.emit("正式考试策略: 全对模式")
 
-        while True:
-            page_count += 1
-            for question in question_list:
+        for page_index, page_questions in question_pages:
+            for question in page_questions:
                 if not isinstance(question, dict):
                     continue
                 question_id = question.get("id", question.get("questionId"))
@@ -268,7 +269,7 @@ class MarsWorkflow:
                     question_id,
                     plan.payload_value,
                     use_time,
-                    current_index=current_index,
+                    current_index=page_index,
                 )
                 if deliberate_wrong:
                     report.deliberate_wrong_sent += 1
@@ -305,21 +306,6 @@ class MarsWorkflow:
                         f"[{len(report.questions)}/{expected or len(seen)}] {label} "
                         f"{preview} -> {plan.payload_value} ({plan.match_kind})"
                     )
-
-            if not (self.api.activity_kind(activity_type) == "practice" and has_next):
-                break
-            if page_count >= max_pages:
-                raise ApiError(f"practice paper exceeded max_pages={max_pages}")
-            if expected and len(report.questions) >= expected:
-                break
-            near = self.api.get_near(user_activity_id, current_index, 2)
-            if not isinstance(near, dict):
-                break
-            question_list = list(near.get("questionList") or [])
-            current_index = int(near.get("currentIndex") or current_index)
-            has_next = _boolish(near.get("hasNext"))
-            if not question_list:
-                break
 
         if self.guard:
             self.guard.validate_coverage(report.missing, expected or len(report.questions))
@@ -405,6 +391,60 @@ class MarsWorkflow:
                 },
             )
         return report
+
+    def _collect_practice_question_pages(
+        self,
+        user_activity_id: Any,
+        paper: dict[str, Any],
+    ) -> list[tuple[int, list[dict[str, Any]]]]:
+        max_pages = int(self.config.get("max_pages") or 50)
+        pages: dict[int, list[dict[str, Any]]] = {}
+
+        def add_page(current: int, value: Any) -> None:
+            question_list = (
+                [item for item in value.get("questionList") or [] if isinstance(item, dict)]
+                if isinstance(value, dict)
+                else []
+            )
+            pages[current] = question_list
+
+        current_index = int(paper.get("currentIndex") or 1)
+        has_before = _boolish(paper.get("hasBefore"))
+        has_next = _boolish(paper.get("hasNext"))
+        add_page(current_index, paper)
+        requests_made = 0
+
+        while has_before:
+            requests_made += 1
+            if requests_made > max_pages:
+                raise ApiError(f"practice pagination exceeded max_pages={max_pages}")
+            near = self.api.get_near(user_activity_id, current_index, 1)
+            if not isinstance(near, dict):
+                break
+            next_index = int(near.get("currentIndex") or 0)
+            if next_index <= 0 or next_index == current_index:
+                raise ApiError(f"practice previous-page index did not advance: {current_index}")
+            current_index = next_index
+            has_before = _boolish(near.get("hasBefore"))
+            has_next = _boolish(near.get("hasNext"))
+            add_page(current_index, near)
+
+        while has_next:
+            requests_made += 1
+            if requests_made > max_pages:
+                raise ApiError(f"practice pagination exceeded max_pages={max_pages}")
+            near = self.api.get_near(user_activity_id, current_index, 2)
+            if not isinstance(near, dict):
+                break
+            next_index = int(near.get("currentIndex") or 0)
+            if next_index <= 0 or next_index == current_index:
+                raise ApiError(f"practice next-page index did not advance: {current_index}")
+            current_index = next_index
+            has_before = _boolish(near.get("hasBefore"))
+            has_next = _boolish(near.get("hasNext"))
+            add_page(current_index, near)
+
+        return [(index, pages[index]) for index in sorted(pages)]
 
     def _plan_deliberate_wrong_questions(
         self,
