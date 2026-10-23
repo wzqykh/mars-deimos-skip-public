@@ -103,6 +103,21 @@ class GuardTests(unittest.TestCase):
             with self.assertRaises(GuardError):
                 guard.validate_submit_timing(100, 100, 30)
 
+    def test_result_score_range_depends_on_activity_type(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            guard = make_guard(directory)
+            guard.validate_result(
+                {"score": 1000, "rightNum": 1000, "errorNum": 0},
+                1000,
+                1,
+            )
+            with self.assertRaises(GuardError):
+                guard.validate_result(
+                    {"score": 1000, "rightNum": 1000, "errorNum": 0},
+                    1000,
+                    4,
+                )
+
     def test_default_policy_sets_613_second_exam_floor(self) -> None:
         policy = GuardPolicy.from_config({})
         self.assertEqual(policy.exam_min_seconds_per_question, 0)

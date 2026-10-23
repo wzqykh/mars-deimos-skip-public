@@ -338,7 +338,12 @@ class IntegrityGuard:
             {"elapsed": round(elapsed_seconds, 3), "minimum": round(minimum, 3)},
         )
 
-    def validate_result(self, result: Any, question_num: int) -> None:
+    def validate_result(
+        self,
+        result: Any,
+        question_num: int,
+        activity_type: int | None = None,
+    ) -> None:
         if not self.policy.enabled:
             return
         if not isinstance(result, dict):
@@ -351,7 +356,8 @@ class IntegrityGuard:
                 "result-count",
                 f"result count mismatch: right+error={right + error}, expected={question_num}",
             )
-        if score < 0 or score > 100:
+        maximum_score = question_num if activity_type in {1, 2} else 100
+        if score < 0 or score > maximum_score:
             raise GuardError("result-score", f"invalid result score: {score}")
         self.emit(
             "result_validated",

@@ -163,7 +163,16 @@ class WorkflowTests(unittest.TestCase):
 
     def test_practice_skips_formal_exam_timing_and_strategy_message(self) -> None:
         bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
-        api = FakeApi()
+        class PracticeApi(FakeApi):
+            def submit_paper(
+                self,
+                activity_type: int,
+                user_activity_id: int,
+            ) -> dict[str, object]:
+                self.submit_called = True
+                return {"score": 1, "rightNum": 1, "errorNum": 0}
+
+        api = PracticeApi()
         messages: list[str] = []
         now = [0.0]
 

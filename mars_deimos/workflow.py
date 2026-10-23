@@ -349,7 +349,11 @@ class MarsWorkflow:
         report.result = self._submit_with_retry(activity_type, user_activity_id)
         report.submitted = True
         if self.guard:
-            self.guard.validate_result(report.result, expected or len(report.questions))
+            self.guard.validate_result(
+                report.result,
+                expected or len(report.questions),
+                activity_type,
+            )
         self.emit(f"交卷结果: {json.dumps(report.result, ensure_ascii=False)}")
         if is_exam:
             if bool(self.config.get("audit_submitted_answers", True)):
