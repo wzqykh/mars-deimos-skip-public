@@ -123,6 +123,14 @@ class GuardTests(unittest.TestCase):
                     with second.run_lock():
                         pass
 
+    def test_different_profile_locks_can_run_concurrently(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = make_guard(directory, lock_path=str(Path(directory) / "a.lock"))
+            second = make_guard(directory, lock_path=str(Path(directory) / "b.lock"))
+            with first.run_lock():
+                with second.run_lock():
+                    pass
+
 
 if __name__ == "__main__":
     unittest.main()

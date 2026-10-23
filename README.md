@@ -27,7 +27,7 @@
 需要 Python 3.10 或更高版本。
 
 ```powershell
-git clone https://github.com/wzqykh/mars-deimos-skip-public.git
+git clone https://github.com/wzqykh/mars-deimos-skip.git
 cd mars-deimos-skip
 python main.py
 ```
@@ -43,7 +43,7 @@ python main.py
 ### Linux / macOS
 
 ```bash
-git clone https://github.com/wzqykh/mars-deimos-skip-public.git
+git clone https://github.com/wzqykh/mars-deimos-skip.git
 cd mars-deimos-skip
 python3 -m venv .venv
 source .venv/bin/activate
@@ -103,6 +103,33 @@ python3 run.py wrong --activity-index 0
 ```powershell
 python3 run.py logout
 ```
+
+## 多账号并行
+
+不同终端使用不同配置档时，会话和运行锁彼此隔离：
+
+```powershell
+# 终端 1
+python main.py auto --profile account-a
+
+# 终端 2
+python main.py auto --profile account-b
+```
+
+也可以通过环境变量固定配置档：
+
+```powershell
+$env:MARS_PROFILE="account-a"
+python main.py auto
+```
+
+每个配置档的会话、验证码、运行锁、审计和错题学习文件位于：
+
+```text
+.state/profiles/<profile>/
+```
+
+公共题库 `data/questions.jsonl` 仍然共用。不指定配置档时继续使用原来的 `.state/`。同一配置档仍只允许一个运行任务，避免同一账号重复开卷；不同配置档可以并行运行。
 
 ## 正式考试策略
 
@@ -204,6 +231,7 @@ cp config.example.json config.json
 
 | 字段 | 说明 |
 | --- | --- |
+| `profile` | 账号配置档名称；也可使用 `--profile` 或 `MARS_PROFILE` |
 | `tenant` | 学校名称或租户代码；留空后交互选择 |
 | `username` | 学号或账号；建议留空 |
 | `password` | 不建议写入文件；可使用环境变量 |
@@ -297,7 +325,7 @@ bash scripts/verify.sh
 
 如果你计划将本项目用于商业产品、组织内部服务或收费部署，请先联系维护者获得书面许可。
 
-本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE) 发布，属于源码公开的非商业许可证。个人学习、研究、实验和非商业组织使用均被允许；商业部署、收费服务、倒卖源码或闭源转售需要事先取得维护者的书面授权。
+> 许可证类型将在公开发布前单独确认。若选择 OSI 认可的标准许可证，“禁止倒卖”更适合作为社区约定；若需要形成可执行的限制，应使用非商业源码许可证，并在仓库根目录添加对应 `LICENSE` 文件。
 
 ## 支持项目
 

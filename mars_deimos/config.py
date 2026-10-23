@@ -7,6 +7,7 @@ from typing import Any
 
 DEFAULTS: dict[str, Any] = {
     "base_url": "https://mars.mycourse.cn/marsapi",
+    "profile": "",
     "tenant": "",
     "username": "",
     "password": "",

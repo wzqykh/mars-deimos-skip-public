@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 
 from mars_deimos.api import ApiError
 from mars_deimos.cli import (
+    _apply_overrides,
     _cleanup_captcha_artifacts,
     _logout_and_archive_session,
     _resolve_answer_mode,
@@ -20,6 +23,70 @@ from mars_deimos.config import DEFAULTS
 
 
 class CaptchaArtifactTests(unittest.TestCase):
+    def test_profile_isolates_session_lock_audit_and_learned_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            config = {
+                "base_url": "https://example.test",
+                "tenant": "",
+                "username": "",
+                "password": "",
+                "bank_path": str(base / "questions.jsonl"),
+                "state_dir": str(base / ".state"),
+                "audit_path": str(base / ".state" / "audit.jsonl"),
+                "lock_path": str(base / ".state" / "run.lock"),
+                "learned_path": str(base / "learned.jsonl"),
+            }
+            args = SimpleNamespace(
+                base_url=None,
+                tenant=None,
+                username=None,
+                password=None,
+                bank_path=None,
+                bank=None,
+                profile="account-a",
+            )
+            _apply_overrides(config, args)
+            profile_dir = base / ".state" / "profiles" / "account-a"
+            self.assertEqual(Path(config["state_dir"]), profile_dir)
+            self.assertEqual(Path(config["audit_path"]), profile_dir / "audit.jsonl")
+            self.assertEqual(Path(config["lock_path"]), profile_dir / "run.lock")
+            self.assertEqual(Path(config["learned_path"]), profile_dir / "learned.jsonl")
+
+    def test_profile_can_come_from_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config = {
+                "base_url": "https://example.test",
+                "tenant": "",
+                "username": "",
+                "password": "",
+                "bank_path": str(Path(directory) / "questions.jsonl"),
+                "state_dir": str(Path(directory) / ".state"),
+                "audit_path": str(Path(directory) / "audit.jsonl"),
+                "lock_path": str(Path(directory) / "run.lock"),
+                "learned_path": str(Path(directory) / "learned.jsonl"),
+            }
+            args = SimpleNamespace(
+                base_url=None,
+                tenant=None,
+                username=None,
+                password=None,
+                bank_path=None,
+                bank=None,
+                profile=None,
+            )
+            previous = os.environ.get("MARS_PROFILE")
+            os.environ["MARS_PROFILE"] = "account-b"
+            try:
+                _apply_overrides(config, args)
+            finally:
+                if previous is None:
+                    os.environ.pop("MARS_PROFILE", None)
+                else:
+                    os.environ["MARS_PROFILE"] = previous
+            self.assertEqual(config["profile"], "account-b")
+            self.assertEqual(Path(config["state_dir"]).parts[-2:], ("profiles", "account-b"))
+
     def test_formal_exam_answer_mode_selection(self) -> None:
         args = type("Args", (), {"answer_mode": "human", "non_interactive": False})()
         self.assertEqual(

@@ -29,6 +29,7 @@ from .xlsx import import_xlsx
 
 
 _CAPTCHA_ARTIFACT_RE = re.compile(r"captcha-\d+-\d+\.(?:png|html)")
+_PROFILE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 
 def _print_json(value: Any) -> None:
@@ -45,6 +46,25 @@ def _apply_overrides(config: dict[str, Any], args: argparse.Namespace) -> None:
         if not bank_path.is_absolute():
             bank_path = Path.cwd() / bank_path
         config["bank_path"] = str(bank_path.resolve())
+    profile = str(
+        getattr(args, "profile", None)
+        or os.environ.get("MARS_PROFILE")
+        or config.get("profile")
+        or ""
+    ).strip()
+    if profile:
+        if not _PROFILE_RE.fullmatch(profile):
+            raise ValueError(
+                "profile must contain only letters, digits, '.', '_' or '-'"
+            )
+        profile_dir = Path(str(config["state_dir"])) / "profiles" / profile
+        config["profile"] = profile
+        config["state_dir"] = str(profile_dir)
+        config["audit_path"] = str(profile_dir / "audit.jsonl")
+        config["lock_path"] = str(profile_dir / "run.lock")
+        config["learned_path"] = str(profile_dir / "learned.jsonl")
+    else:
+        config["profile"] = ""
 
 
 def _load_bank(config: dict[str, Any]) -> QuestionBank:
@@ -589,6 +609,7 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--config", default="config.json", help="JSON config path")
     common.add_argument("--base-url")
+    common.add_argument("--profile", help="isolated account profile")
     common.add_argument("--tenant")
     common.add_argument("--username")
     common.add_argument("--password")
@@ -657,6 +678,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config, _ = load_config(args.config)
         _apply_overrides(config, args)
+        if config.get("profile"):
+            print(f"账号配置档: {config['profile']}")
         return int(args.func(config, args) or 0)
     except (
         ApiError,
