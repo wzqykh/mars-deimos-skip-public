@@ -150,6 +150,7 @@ class MarsWorkflow:
         dry_run: bool = False,
         collect_wrong: bool | None = None,
         answer_mode: str | None = None,
+        exam_duration_mode: str | None = None,
     ) -> RunReport:
         activity_type = int(activity.get("activityType"))
         is_exam = self.api.activity_kind(activity_type) == "exam"
@@ -162,6 +163,16 @@ class MarsWorkflow:
             answer_mode = "perfect"
         if answer_mode not in {"perfect", "human", "score96"}:
             raise ValueError(f"unsupported answer mode: {answer_mode}")
+        exam_duration_mode = str(
+            exam_duration_mode
+            or self.config.get("formal_exam_duration")
+            or "standard"
+        ).strip().lower()
+        if activity_type != 4 or exam_duration_mode == "ask":
+            exam_duration_mode = "standard"
+        if exam_duration_mode not in {"standard", "short"}:
+            raise ValueError(f"unsupported exam duration mode: {exam_duration_mode}")
+        short_exam = exam_duration_mode == "short"
         report = RunReport(
             activity_type=activity_type,
             user_activity_id=user_activity_id,
@@ -216,6 +227,8 @@ class MarsWorkflow:
         last_tick = self.clock()
         deliberate_wrong_plans: dict[str, AnswerPlan] = {}
         if activity_type == 4:
+            duration_label = "4分30秒" if short_exam else "10分13秒"
+            self.emit(f"正式考试完成时间: {duration_label}")
             if answer_mode in {"human", "score96"}:
                 target_count = (
                     max(0, int(self.config.get("score96_wrong_count") or 4))
@@ -266,7 +279,10 @@ class MarsWorkflow:
                 now = self.clock()
                 elapsed = now - last_tick
                 delay = (
-                    self.guard.next_question_delay(activity_type)
+                    self.guard.next_question_delay(
+                        activity_type,
+                        short_exam=short_exam,
+                    )
                     if self.guard
                     else legacy_delay
                 )
@@ -324,13 +340,20 @@ class MarsWorkflow:
                 self.guard.minimum_exam_seconds(
                     expected or len(report.questions),
                     int(report.prepared.get("answerTime") or 0),
+                    short_exam=short_exam,
                 )
                 if is_exam
                 else 0.0
             )
         else:
             exam_min_seconds = (
-                float(self.config.get("exam_min_seconds") or 0) if is_exam else 0.0
+                float(
+                    self.config.get("exam_short_min_seconds", 270)
+                    if short_exam
+                    else self.config.get("exam_min_seconds", 613)
+                )
+                if is_exam
+                else 0.0
             )
         self.emit(
             f"答题完成: {len(report.questions)}/{expected or len(report.questions)} 题, "
@@ -356,6 +379,7 @@ class MarsWorkflow:
                 elapsed_before_submit,
                 expected or len(report.questions),
                 int(report.prepared.get("answerTime") or 0),
+                short_exam=short_exam,
             )
         report.result = self._submit_with_retry(activity_type, user_activity_id)
         report.submitted = True

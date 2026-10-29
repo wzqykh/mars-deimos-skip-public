@@ -31,6 +31,9 @@ class GuardPolicy:
     max_question_seconds: float = 0.25
     exam_min_question_seconds: float = 5.0
     exam_max_question_seconds: float = 7.0
+    short_exam_min_question_seconds: float = 2.0
+    short_exam_max_question_seconds: float = 3.0
+    short_explicit_exam_min_seconds: float = 270.0
     exam_min_seconds_per_question: float = 0.0
     explicit_exam_min_seconds: float = 613.0
     lock_timeout_seconds: float = 1.0
@@ -46,10 +49,21 @@ class GuardPolicy:
         exam_max_delay = float(
             config.get("exam_question_delay_max_seconds", max(exam_min_delay, 7.0))
         )
+        short_exam_min_delay = float(
+            config.get("exam_short_question_delay_min_seconds", 2.0)
+        )
+        short_exam_max_delay = float(
+            config.get(
+                "exam_short_question_delay_max_seconds",
+                max(short_exam_min_delay, 3.0),
+            )
+        )
         if min_delay < 0 or max_delay < min_delay:
             raise ValueError("invalid question delay range")
         if exam_min_delay < 0 or exam_max_delay < exam_min_delay:
             raise ValueError("invalid exam question delay range")
+        if short_exam_min_delay < 0 or short_exam_max_delay < short_exam_min_delay:
+            raise ValueError("invalid short exam question delay range")
         return cls(
             enabled=bool(config.get("guard_enabled", True)),
             strict=bool(config.get("guard_strict", True)),
@@ -61,6 +75,11 @@ class GuardPolicy:
             max_question_seconds=max_delay,
             exam_min_question_seconds=exam_min_delay,
             exam_max_question_seconds=exam_max_delay,
+            short_exam_min_question_seconds=short_exam_min_delay,
+            short_exam_max_question_seconds=short_exam_max_delay,
+            short_explicit_exam_min_seconds=float(
+                config.get("exam_short_min_seconds", 270) or 0
+            ),
             exam_min_seconds_per_question=float(
                 config.get("exam_min_seconds_per_question", 0.0)
             ),
@@ -157,7 +176,12 @@ class IntegrityGuard:
             else None
         )
 
-    def next_question_delay(self, activity_type: Any = None) -> float:
+    def next_question_delay(
+        self,
+        activity_type: Any = None,
+        *,
+        short_exam: bool = False,
+    ) -> float:
         if not self.policy.enabled:
             return 0.0
         try:
@@ -165,6 +189,11 @@ class IntegrityGuard:
         except (TypeError, ValueError):
             is_exam = False
         if is_exam:
+            if short_exam:
+                return self.random.uniform(
+                    self.policy.short_exam_min_question_seconds,
+                    self.policy.short_exam_max_question_seconds,
+                )
             return self.random.uniform(
                 self.policy.exam_min_question_seconds,
                 self.policy.exam_max_question_seconds,
@@ -305,8 +334,19 @@ class IntegrityGuard:
             raise GuardError("bank-coverage", f"bank missing {missing} questions")
         self.emit("coverage_validated", {"missing": missing, "total": total})
 
-    def minimum_exam_seconds(self, question_num: int, answer_time: int) -> float:
-        explicit = max(0.0, self.policy.explicit_exam_min_seconds)
+    def minimum_exam_seconds(
+        self,
+        question_num: int,
+        answer_time: int,
+        *,
+        short_exam: bool = False,
+    ) -> float:
+        explicit = max(
+            0.0,
+            self.policy.short_explicit_exam_min_seconds
+            if short_exam
+            else self.policy.explicit_exam_min_seconds,
+        )
         per_question = max(0.0, question_num * self.policy.exam_min_seconds_per_question)
         minimum = max(explicit, per_question)
         if answer_time > 0:
@@ -318,10 +358,16 @@ class IntegrityGuard:
         elapsed_seconds: float,
         question_num: int,
         answer_time: int,
+        *,
+        short_exam: bool = False,
     ) -> None:
         if not self.policy.enabled:
             return
-        minimum = self.minimum_exam_seconds(question_num, answer_time)
+        minimum = self.minimum_exam_seconds(
+            question_num,
+            answer_time,
+            short_exam=short_exam,
+        )
         maximum = answer_time * 60 if answer_time > 0 else float("inf")
         if elapsed_seconds + 0.01 < minimum:
             raise GuardError(

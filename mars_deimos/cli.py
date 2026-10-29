@@ -158,6 +158,39 @@ def _resolve_answer_mode(
         print("请输入 0、1 或 2")
 
 
+def _resolve_exam_duration(
+    config: dict[str, Any],
+    args: argparse.Namespace,
+    activity_type: Any,
+) -> str:
+    try:
+        if int(activity_type) != 4:
+            return "standard"
+    except (TypeError, ValueError):
+        return "standard"
+    mode = str(
+        getattr(args, "exam_duration", None)
+        or config.get("formal_exam_duration")
+        or "ask"
+    ).strip().lower()
+    if mode != "ask":
+        if mode not in {"standard", "short"}:
+            raise ValueError(f"unsupported formal exam duration: {mode}")
+        return mode
+    if getattr(args, "non_interactive", False):
+        raise ValueError("--exam-duration is required in non-interactive mode")
+    print("请选择正式考试完成时间：")
+    print("[0] 标准：10 分 13 秒（默认）")
+    print("[1] 快速：4 分 30 秒")
+    while True:
+        selected = input("时间序号（直接回车选择标准）: ").strip().lower()
+        if selected in {"", "0", "标准", "standard"}:
+            return "standard"
+        if selected in {"1", "快速", "short"}:
+            return "short"
+        print("请输入 0 或 1")
+
+
 def _resolve_tenant(tenants: list[dict[str, Any]], selector: str) -> dict[str, Any]:
     if not tenants:
         raise ApiError("tenant list is empty")
@@ -449,6 +482,11 @@ def cmd_run(config: dict[str, Any], args: argparse.Namespace) -> int:
         if args.dry_run
         else _resolve_answer_mode(config, args, activity.get("activityType"))
     )
+    exam_duration_mode = (
+        "standard"
+        if args.dry_run
+        else _resolve_exam_duration(config, args, activity.get("activityType"))
+    )
     with guard.run_lock():
         guard.ensure_session(client.token, snapshot["user"])
         report = workflow.execute(
@@ -456,6 +494,7 @@ def cmd_run(config: dict[str, Any], args: argparse.Namespace) -> int:
             dry_run=bool(args.dry_run),
             collect_wrong=False if args.no_collect_wrong else None,
             answer_mode=answer_mode,
+            exam_duration_mode=exam_duration_mode,
         )
     if bool(config.get("save_run_log", False)):
         log_path = report.save(config["state_dir"])
@@ -528,6 +567,11 @@ def cmd_auto(config: dict[str, Any], args: argparse.Namespace) -> int:
         if args.dry_run
         else _resolve_answer_mode(config, args, activity.get("activityType"))
     )
+    exam_duration_mode = (
+        "standard"
+        if args.dry_run
+        else _resolve_exam_duration(config, args, activity.get("activityType"))
+    )
     with guard.run_lock():
         guard.ensure_session(client.token, user)
         report = workflow.execute(
@@ -535,6 +579,7 @@ def cmd_auto(config: dict[str, Any], args: argparse.Namespace) -> int:
             dry_run=bool(args.dry_run),
             collect_wrong=False if args.no_collect_wrong else None,
             answer_mode=answer_mode,
+            exam_duration_mode=exam_duration_mode,
         )
     if bool(config.get("save_run_log", False)):
         log_path = report.save(config["state_dir"])
@@ -638,6 +683,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--user-activity-id", default="")
     run.add_argument("--activity-type", type=int)
     run.add_argument("--answer-mode", choices=("perfect", "human", "score96"))
+    run.add_argument("--exam-duration", choices=("standard", "short"))
     run.add_argument("--dry-run", action="store_true", help="prepare only; do not start a paper")
     run.add_argument("--no-collect-wrong", action="store_true")
     run.add_argument("--logout", action="store_true")
@@ -647,6 +693,7 @@ def build_parser() -> argparse.ArgumentParser:
     auto = subparsers.add_parser("auto", parents=[common], help="one-command practice or exam")
     auto.add_argument("--activity-index", type=int)
     auto.add_argument("--answer-mode", choices=("perfect", "human", "score96"))
+    auto.add_argument("--exam-duration", choices=("standard", "short"))
     auto.add_argument("--dry-run", action="store_true")
     auto.add_argument("--no-collect-wrong", action="store_true")
     auto.add_argument("--captcha-code", default="")

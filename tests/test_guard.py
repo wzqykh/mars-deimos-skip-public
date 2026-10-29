@@ -126,6 +126,9 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(policy.max_question_seconds, 0.25)
         self.assertEqual(policy.exam_min_question_seconds, 5.0)
         self.assertEqual(policy.exam_max_question_seconds, 7.0)
+        self.assertEqual(policy.short_exam_min_question_seconds, 2.0)
+        self.assertEqual(policy.short_exam_max_question_seconds, 3.0)
+        self.assertEqual(policy.short_explicit_exam_min_seconds, 270)
         self.assertEqual(policy.max_bank_miss_ratio, 0.05)
         self.assertFalse(policy.abort_on_bank_miss)
 

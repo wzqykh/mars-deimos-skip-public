@@ -13,6 +13,7 @@ from mars_deimos.api import ApiError
 from mars_deimos.cli import (
     _apply_overrides,
     _cleanup_captcha_artifacts,
+    _resolve_exam_duration,
     _logout_and_archive_session,
     _resolve_answer_mode,
     _runnable_auto_activities,
@@ -23,6 +24,22 @@ from mars_deimos.config import DEFAULTS
 
 
 class CaptchaArtifactTests(unittest.TestCase):
+    def test_formal_exam_duration_selection(self) -> None:
+        args = type(
+            "Args",
+            (),
+            {"exam_duration": "short", "non_interactive": False},
+        )()
+        self.assertEqual(
+            _resolve_exam_duration({"formal_exam_duration": "ask"}, args, 4),
+            "short",
+        )
+        self.assertEqual(
+            _resolve_exam_duration({"formal_exam_duration": "ask"}, args, 3),
+            "standard",
+        )
+        self.assertEqual(DEFAULTS["exam_short_min_seconds"], 270)
+
     def test_profile_isolates_session_lock_audit_and_learned_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

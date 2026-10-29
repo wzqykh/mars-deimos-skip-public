@@ -550,6 +550,56 @@ class WorkflowTests(unittest.TestCase):
             )
         self.assertEqual(report.elapsed_seconds, 613)
 
+    def test_short_formal_exam_waits_until_270_seconds(self) -> None:
+        bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
+        api = FakeApi()
+        now = [0.0]
+
+        def clock() -> float:
+            return now[0]
+
+        def sleep(seconds: float) -> None:
+            now[0] += seconds
+
+        with tempfile.TemporaryDirectory() as directory:
+            policy = GuardPolicy(
+                min_question_seconds=0,
+                max_question_seconds=0,
+                exam_min_question_seconds=0,
+                exam_max_question_seconds=0,
+                short_exam_min_question_seconds=0,
+                short_exam_max_question_seconds=0,
+                exam_min_seconds_per_question=0,
+                explicit_exam_min_seconds=613,
+                short_explicit_exam_min_seconds=270,
+                audit_path=str(Path(directory) / "audit.jsonl"),
+                lock_path=str(Path(directory) / "run.lock"),
+            )
+            workflow = MarsWorkflow(
+                api,
+                bank,
+                {
+                    "question_delay_seconds": 0,
+                    "collect_wrong_answers": False,
+                    "exam_min_seconds": 0,
+                    "submit_retry_count": 0,
+                    "submit_retry_seconds": 0,
+                    "max_pages": 2,
+                    "learned_path": str(Path(directory) / "learned.jsonl"),
+                },
+                emit=lambda _: None,
+                clock=clock,
+                sleep=sleep,
+                guard=IntegrityGuard(policy),
+            )
+            report = workflow.execute(
+                {"activityType": 4, "userActivityId": 20, "name": "正式考试"},
+                collect_wrong=False,
+                answer_mode="perfect",
+                exam_duration_mode="short",
+            )
+        self.assertEqual(report.elapsed_seconds, 270)
+
     def test_quiet_mode_hides_per_question_output(self) -> None:
         bank = QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))])
         api = FakeApi()

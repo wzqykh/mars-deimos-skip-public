@@ -141,12 +141,21 @@ python main.py auto
 [2] 96 分模式：故意错 4 题
 ```
 
+随后选择完成时间：
+
+```text
+[0] 标准：10 分 13 秒（默认）
+[1] 快速：4 分 30 秒
+```
+
 也可以直接通过参数指定：
 
 ```powershell
 python main.py auto --activity-index 3 --answer-mode perfect
 python main.py auto --activity-index 3 --answer-mode human
 python main.py auto --activity-index 3 --answer-mode score96
+python main.py auto --activity-index 3 --exam-duration standard
+python main.py auto --activity-index 3 --exam-duration short
 ```
 
 拟人模式不会简单随机填入无效内容，而是根据题型构造合法但错误的答案：
@@ -239,13 +248,17 @@ cp config.example.json config.json
 | `password` | 不建议写入文件；可使用环境变量 |
 | `exam_question_delay_min_seconds` | 正式考试每题等待下限，默认 5 秒 |
 | `exam_question_delay_max_seconds` | 正式考试每题等待上限，默认 7 秒 |
+| `exam_short_question_delay_min_seconds` | 快速正式考试每题等待下限，默认 2 秒 |
+| `exam_short_question_delay_max_seconds` | 快速正式考试每题等待上限，默认 3 秒 |
+| `formal_exam_duration` | 正式考试用时：`ask`、`standard` 或 `short` |
+| `exam_short_min_seconds` | 快速正式考试最低总用时，默认 270 秒 |
 | `formal_exam_mode` | 正式考试策略：`ask`、`perfect` 或 `human` |
 | `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 8 |
 | `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 11 |
 | `score96_wrong_count` | 96 分模式故意错题数，默认 4 |
 | `audit_submitted_answers` | 是否检查服务端作答落库状态 |
 | `allow_partial_practice_submit` | 顺序练习未达到预期题数时是否仍允许交卷，默认关闭 |
-| `exam_min_seconds` | 考试最低总用时，默认 613 秒 |
+| `exam_min_seconds` | 标准考试最低总用时，默认 613 秒 |
 | `logout_after_exam` | 考试完成后是否自动退出登录 |
 | `cleanup_captcha_files` | 是否自动删除验证码临时文件 |
 | `save_run_log` | 是否保存完整运行记录 |
