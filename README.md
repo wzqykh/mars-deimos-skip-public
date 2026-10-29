@@ -138,6 +138,7 @@ python main.py auto
 ```text
 [0] 全对（默认）
 [1] 拟人模式：随机故意错 8～11 题
+[2] 96 分模式：故意错 4 题
 ```
 
 也可以直接通过参数指定：
@@ -145,6 +146,7 @@ python main.py auto
 ```powershell
 python main.py auto --activity-index 3 --answer-mode perfect
 python main.py auto --activity-index 3 --answer-mode human
+python main.py auto --activity-index 3 --answer-mode score96
 ```
 
 拟人模式不会简单随机填入无效内容，而是根据题型构造合法但错误的答案：
@@ -240,6 +242,7 @@ cp config.example.json config.json
 | `formal_exam_mode` | 正式考试策略：`ask`、`perfect` 或 `human` |
 | `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 8 |
 | `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 11 |
+| `score96_wrong_count` | 96 分模式故意错题数，默认 4 |
 | `audit_submitted_answers` | 是否检查服务端作答落库状态 |
 | `allow_partial_practice_submit` | 顺序练习未达到预期题数时是否仍允许交卷，默认关闭 |
 | `exam_min_seconds` | 考试最低总用时，默认 613 秒 |

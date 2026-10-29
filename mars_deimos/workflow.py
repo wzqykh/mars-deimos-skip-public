@@ -160,7 +160,7 @@ class MarsWorkflow:
         ).strip().lower()
         if activity_type != 4:
             answer_mode = "perfect"
-        if answer_mode not in {"perfect", "human"}:
+        if answer_mode not in {"perfect", "human", "score96"}:
             raise ValueError(f"unsupported answer mode: {answer_mode}")
         report = RunReport(
             activity_type=activity_type,
@@ -216,15 +216,26 @@ class MarsWorkflow:
         last_tick = self.clock()
         deliberate_wrong_plans: dict[str, AnswerPlan] = {}
         if activity_type == 4:
-            if answer_mode == "human":
+            if answer_mode in {"human", "score96"}:
+                target_count = (
+                    max(0, int(self.config.get("score96_wrong_count") or 4))
+                    if answer_mode == "score96"
+                    else None
+                )
                 deliberate_wrong_plans = self._plan_deliberate_wrong_questions(
                     question_list,
                     allow_server_correct=allow_server_correct,
+                    target_count=target_count,
                 )
                 report.deliberate_wrong_planned = len(deliberate_wrong_plans)
-                self.emit(
-                    f"正式考试策略: 拟人模式，计划故意错 {report.deliberate_wrong_planned} 题"
-                )
+                if answer_mode == "score96":
+                    self.emit(
+                        f"正式考试策略: 96 分模式，计划故意错 {report.deliberate_wrong_planned} 题"
+                    )
+                else:
+                    self.emit(
+                        f"正式考试策略: 拟人模式，计划故意错 {report.deliberate_wrong_planned} 题"
+                    )
             else:
                 self.emit("正式考试策略: 全对模式")
 
@@ -366,8 +377,8 @@ class MarsWorkflow:
                     raise ApiError(
                         f"服务端未记录 {report.unrecorded_answers} 道题的作答，本次成绩不可信"
                     )
-        if answer_mode == "human":
-            self._audit_human_mode(report)
+        if answer_mode in {"human", "score96"}:
+            self._audit_deliberate_mode(report)
 
         should_collect = (
             bool(self.config.get("collect_wrong_answers", True))
@@ -455,6 +466,7 @@ class MarsWorkflow:
         questions: list[dict[str, Any]],
         *,
         allow_server_correct: bool,
+        target_count: int | None = None,
     ) -> dict[str, AnswerPlan]:
         minimum = max(0, int(self.config.get("deliberate_wrong_min") or 0))
         maximum = max(0, int(self.config.get("deliberate_wrong_max") or 0))
@@ -471,7 +483,12 @@ class MarsWorkflow:
             wrong_plan = self._build_deliberate_wrong_plan(question, plan)
             if wrong_plan is not None:
                 eligible[question_id] = wrong_plan
-        target = min(self.random.randint(minimum, maximum), len(eligible))
+        requested = (
+            max(0, target_count)
+            if target_count is not None
+            else self.random.randint(minimum, maximum)
+        )
+        target = min(requested, len(eligible))
         if target < minimum:
             self.emit(
                 f"拟人模式: 仅找到 {target} 道可构造错误的题目，低于计划下限 {minimum}"
@@ -579,22 +596,22 @@ class MarsWorkflow:
             )
         return unrecorded
 
-    def _audit_human_mode(self, report: RunReport) -> None:
+    def _audit_deliberate_mode(self, report: RunReport) -> None:
         if report.deliberate_wrong_sent != report.deliberate_wrong_planned:
             raise ApiError(
-                "拟人策略未完整执行: "
+                "错题策略未完整执行: "
                 f"计划 {report.deliberate_wrong_planned} 题，实际发送 {report.deliberate_wrong_sent} 题"
             )
         server_errors = int(
             report.result.get("errorNum") or 0
         ) if isinstance(report.result, dict) else 0
         self.emit(
-            f"拟人策略审计: 计划故意错 {report.deliberate_wrong_sent} 题，"
+            f"错题策略审计: 计划故意错 {report.deliberate_wrong_sent} 题，"
             f"服务端实际错 {server_errors} 题"
         )
         if server_errors != report.deliberate_wrong_sent:
             raise ApiError(
-                "拟人策略结果不符: "
+                "错题策略结果不符: "
                 f"计划 {report.deliberate_wrong_sent} 题，服务端实际 {server_errors} 题"
             )
         if self.guard:

@@ -16,6 +16,7 @@
   "formal_exam_mode": "ask",
   "deliberate_wrong_min": 8,
   "deliberate_wrong_max": 11,
+  "score96_wrong_count": 4,
   "audit_submitted_answers": true,
   "allow_partial_practice_submit": false,
   "guard_enabled": true,

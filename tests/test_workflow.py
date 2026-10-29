@@ -298,6 +298,34 @@ class WorkflowTests(unittest.TestCase):
             self.assertTrue(wrong.answer_ids)
             self.assertNotEqual(set(wrong.answer_ids), {"a", "b"})
 
+    def test_score96_mode_plans_exactly_four_wrong_questions(self) -> None:
+        workflow = MarsWorkflow(
+            FakeApi(),
+            QuestionBank([BankQuestion("1", 1, "", "测试题", ("甲", "乙"), ("B",))]),
+            {"score96_wrong_count": 4},
+            emit=lambda _: None,
+            random_source=random.Random(13),
+        )
+        questions = [
+            {
+                "id": 800 + index,
+                "type": 1,
+                "title": "测试题",
+                "optionList": [
+                    {"id": "a", "content": "甲"},
+                    {"id": "b", "content": "乙"},
+                ],
+            }
+            for index in range(20)
+        ]
+        plans = workflow._plan_deliberate_wrong_questions(
+            questions,
+            allow_server_correct=False,
+            target_count=4,
+        )
+        self.assertEqual(len(plans), 4)
+        self.assertEqual(len(set(plans)), 4)
+
     def test_human_mode_plans_and_submits_two_wrong_answers(self) -> None:
         class HumanApi(FakeApi):
             def prepare_paper(

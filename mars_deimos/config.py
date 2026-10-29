@@ -23,6 +23,7 @@ DEFAULTS: dict[str, Any] = {
     "formal_exam_mode": "ask",
     "deliberate_wrong_min": 8,
     "deliberate_wrong_max": 11,
+    "score96_wrong_count": 4,
     "audit_submitted_answers": True,
     "allow_partial_practice_submit": False,
     "guard_enabled": True,
