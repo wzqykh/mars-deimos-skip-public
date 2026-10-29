@@ -117,6 +117,7 @@ class CaptchaArtifactTests(unittest.TestCase):
         self.assertEqual(DEFAULTS["deliberate_wrong_min"], 8)
         self.assertEqual(DEFAULTS["deliberate_wrong_max"], 11)
         self.assertEqual(DEFAULTS["score96_wrong_count"], 4)
+        self.assertEqual(DEFAULTS["score75_wrong_count"], 25)
         score96_args = type(
             "Args",
             (),
@@ -125,6 +126,15 @@ class CaptchaArtifactTests(unittest.TestCase):
         self.assertEqual(
             _resolve_answer_mode({"formal_exam_mode": "ask"}, score96_args, 4),
             "score96",
+        )
+        score75_args = type(
+            "Args",
+            (),
+            {"answer_mode": "score75", "non_interactive": False},
+        )()
+        self.assertEqual(
+            _resolve_answer_mode({"formal_exam_mode": "ask"}, score75_args, 4),
+            "score75",
         )
 
     def test_cleanup_removes_only_per_attempt_captcha_files(self) -> None:

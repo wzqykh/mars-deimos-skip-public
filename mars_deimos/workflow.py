@@ -161,7 +161,7 @@ class MarsWorkflow:
         ).strip().lower()
         if activity_type != 4:
             answer_mode = "perfect"
-        if answer_mode not in {"perfect", "human", "score96"}:
+        if answer_mode not in {"perfect", "human", "score96", "score75"}:
             raise ValueError(f"unsupported answer mode: {answer_mode}")
         exam_duration_mode = str(
             exam_duration_mode
@@ -229,10 +229,12 @@ class MarsWorkflow:
         if activity_type == 4:
             duration_label = "4分30秒" if short_exam else "10分13秒"
             self.emit(f"正式考试完成时间: {duration_label}")
-            if answer_mode in {"human", "score96"}:
+            if answer_mode in {"human", "score96", "score75"}:
                 target_count = (
                     max(0, int(self.config.get("score96_wrong_count") or 4))
                     if answer_mode == "score96"
+                    else max(0, int(self.config.get("score75_wrong_count") or 25))
+                    if answer_mode == "score75"
                     else None
                 )
                 deliberate_wrong_plans = self._plan_deliberate_wrong_questions(
@@ -241,9 +243,11 @@ class MarsWorkflow:
                     target_count=target_count,
                 )
                 report.deliberate_wrong_planned = len(deliberate_wrong_plans)
-                if answer_mode == "score96":
+                if answer_mode in {"score96", "score75"}:
+                    score_label = "96" if answer_mode == "score96" else "75"
                     self.emit(
-                        f"正式考试策略: 96 分模式，计划故意错 {report.deliberate_wrong_planned} 题"
+                        f"正式考试策略: {score_label} 分模式，"
+                        f"计划故意错 {report.deliberate_wrong_planned} 题"
                     )
                 else:
                     self.emit(
@@ -401,7 +405,7 @@ class MarsWorkflow:
                     raise ApiError(
                         f"服务端未记录 {report.unrecorded_answers} 道题的作答，本次成绩不可信"
                     )
-        if answer_mode in {"human", "score96"}:
+        if answer_mode in {"human", "score96", "score75"}:
             self._audit_deliberate_mode(report)
 
         should_collect = (

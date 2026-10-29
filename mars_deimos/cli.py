@@ -134,7 +134,7 @@ def _resolve_answer_mode(
         or "ask"
     ).strip().lower()
     if mode != "ask":
-        if mode not in {"perfect", "human", "score96"}:
+        if mode not in {"perfect", "human", "score96", "score75"}:
             raise ValueError(f"unsupported formal exam mode: {mode}")
         return mode
     if getattr(args, "non_interactive", False):
@@ -147,6 +147,8 @@ def _resolve_answer_mode(
     print(f"[1] 拟人模式：随机故意错 {wrong_label} 题")
     score96_wrong = max(0, int(config.get("score96_wrong_count") or 4))
     print(f"[2] 96 分模式：故意错 {score96_wrong} 题")
+    score75_wrong = max(0, int(config.get("score75_wrong_count") or 25))
+    print(f"[3] 75 分模式：故意错 {score75_wrong} 题")
     while True:
         selected = input("策略序号（直接回车选择全对）: ").strip().lower()
         if selected in {"", "0", "全对", "perfect"}:
@@ -155,7 +157,9 @@ def _resolve_answer_mode(
             return "human"
         if selected in {"2", "96", "score96"}:
             return "score96"
-        print("请输入 0、1 或 2")
+        if selected in {"3", "75", "score75"}:
+            return "score75"
+        print("请输入 0、1、2 或 3")
 
 
 def _resolve_exam_duration(
@@ -682,7 +686,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--activity-index", type=int, default=0)
     run.add_argument("--user-activity-id", default="")
     run.add_argument("--activity-type", type=int)
-    run.add_argument("--answer-mode", choices=("perfect", "human", "score96"))
+    run.add_argument(
+        "--answer-mode",
+        choices=("perfect", "human", "score96", "score75"),
+    )
     run.add_argument("--exam-duration", choices=("standard", "short"))
     run.add_argument("--dry-run", action="store_true", help="prepare only; do not start a paper")
     run.add_argument("--no-collect-wrong", action="store_true")
@@ -692,7 +699,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     auto = subparsers.add_parser("auto", parents=[common], help="one-command practice or exam")
     auto.add_argument("--activity-index", type=int)
-    auto.add_argument("--answer-mode", choices=("perfect", "human", "score96"))
+    auto.add_argument(
+        "--answer-mode",
+        choices=("perfect", "human", "score96", "score75"),
+    )
     auto.add_argument("--exam-duration", choices=("standard", "short"))
     auto.add_argument("--dry-run", action="store_true")
     auto.add_argument("--no-collect-wrong", action="store_true")

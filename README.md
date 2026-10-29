@@ -139,6 +139,7 @@ python main.py auto
 [0] 全对（默认）
 [1] 拟人模式：随机故意错 8～11 题
 [2] 96 分模式：故意错 4 题
+[3] 75 分模式：故意错 25 题
 ```
 
 随后选择完成时间：
@@ -154,6 +155,7 @@ python main.py auto
 python main.py auto --activity-index 3 --answer-mode perfect
 python main.py auto --activity-index 3 --answer-mode human
 python main.py auto --activity-index 3 --answer-mode score96
+python main.py auto --activity-index 3 --answer-mode score75
 python main.py auto --activity-index 3 --exam-duration standard
 python main.py auto --activity-index 3 --exam-duration short
 ```
@@ -256,6 +258,7 @@ cp config.example.json config.json
 | `deliberate_wrong_min` | 拟人模式故意错题数下限，默认 8 |
 | `deliberate_wrong_max` | 拟人模式故意错题数上限，默认 11 |
 | `score96_wrong_count` | 96 分模式故意错题数，默认 4 |
+| `score75_wrong_count` | 75 分模式故意错题数，默认 25 |
 | `audit_submitted_answers` | 是否检查服务端作答落库状态 |
 | `allow_partial_practice_submit` | 顺序练习未达到预期题数时是否仍允许交卷，默认关闭 |
 | `exam_min_seconds` | 标准考试最低总用时，默认 613 秒 |
